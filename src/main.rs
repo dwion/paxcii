@@ -9,35 +9,27 @@
 
 use image::{
     imageops::FilterType,
-    Rgb32FImage,
+    DynamicImage,
 };
 use clap::{Arg, ArgAction, Command, ArgMatches};
-use std::io::{stdout, Write};
 use std::process::ExitCode;
+use std::fs;
 
 fn main() -> ExitCode {
     let cmd = cli();
 
     let (settings, path) = match process_args(cmd) {
-        Some(x) => x,
-        // Peacefully (without panicking) exit code on error in argument
-        None => return ExitCode::FAILURE
+        Ok(x) => x,
+        Err(_) => return ExitCode::FAILURE
     };
 
-    let mut img = image::open(path).expect("Failed to load image");
-
-    // Resize image to fit desired ascii output size
-    if settings.preserve_aspect_ratio {
-        img = img.resize(settings.width, settings.height, FilterType::Triangle);
-    } else {
-        img = img.resize_exact(settings.width, settings.height, FilterType::Triangle);
-    }
-
-    // Convert 'DynamicImage' type to 'RGB32FImage'
-    let img = img.to_rgb32f();
+    let img = image::open(path).expect("Failed to load image");
 
     // print!("{}[2J", 27 as char);
-    img_to_ascii(img, settings);
+    match img_to_ascii(img, settings) {
+        Ok(_) => (),
+        Err(_) => return ExitCode::FAILURE
+    }
 
     ExitCode::SUCCESS
 }
@@ -50,6 +42,7 @@ const CHARS_FILLED: [char; 4] = ['░', '▒', '▓', '█'];
 // Settings to be used when converting image to ascii
 struct Settings {
     // is_video: bool,
+    output_file: String,
     color: bool,
     char_set: Vec<char>,
     width: u32,
@@ -61,6 +54,7 @@ impl Default for Settings {
     fn default() -> Settings {
         Settings {
             // is_video: false,
+            output_file: String::new(),
             color: true,
             char_set: Vec::from(CHARS_MEDIUM),
             width: 42,
@@ -70,7 +64,7 @@ impl Default for Settings {
     }
 }
 
-fn process_args(cmd: ArgMatches) -> Option<(Settings, String)> {
+fn process_args(cmd: ArgMatches) -> Result<(Settings, String), ()> {
     let mut settings = Settings::default();
     let mut path = String::new();
 
@@ -80,6 +74,11 @@ fn process_args(cmd: ArgMatches) -> Option<(Settings, String)> {
     // } else if cmd.contains_id("video") {
         // settings.is_video = true;
         // path = *cmd.get_one::<String>("video").unwrap();
+    }
+
+    // Get output file name
+    if cmd.contains_id("output-file") {
+        settings.output_file = cmd.get_one::<String>("output-file").unwrap().clone();
     }
 
     if cmd.get_flag("no-color") {
@@ -100,7 +99,7 @@ fn process_args(cmd: ArgMatches) -> Option<(Settings, String)> {
             "filled" => Vec::from(CHARS_FILLED),
             _ => {
                 eprintln!("\x1b[31;1merror\x1b[0m: Invalid value for argument 'char-set'. Value can only be: light/medium/filled");
-                return None;
+                return Err(());
             }
         }
     }
@@ -115,7 +114,7 @@ fn process_args(cmd: ArgMatches) -> Option<(Settings, String)> {
             Ok(w) => settings.width = w,
             Err(_) => {
                 eprintln!("\x1b[31;1merror\x1b[0m: Argument 'width' must be a number");
-                return None;
+                return Err(());
             }
         }
     }
@@ -125,12 +124,12 @@ fn process_args(cmd: ArgMatches) -> Option<(Settings, String)> {
             Ok(h) => settings.height = h,
             Err(_) => {
                 eprintln!("\x1b[31;1merror\x1b[0m: Argument 'height' must be a number");
-                return None;
+                return Err(());
             }
         }
     }
 
-    Some((settings, path))
+    Ok((settings, path))
 }
 
 fn cli() -> ArgMatches {
@@ -151,10 +150,20 @@ fn cli() -> ArgMatches {
                 .short('i')
                 .long("image")
                 .help("Path to input image file")
+                .value_name("example.jpg")
                 .num_args(1)
                 .action(ArgAction::Set)
                 // .required_unless_present("video")
                 .required(true)
+        )
+        .arg(
+            Arg::new("output-file")
+                .short('o')
+                .long("output-file")
+                .help("Print output to specified file instead of stdout")
+                .value_name("example.txt")
+                .num_args(1)
+                .action(ArgAction::Set)
         )
         .arg(
             Arg::new("no-color")
@@ -206,17 +215,24 @@ fn get_term_size() -> Option<(u32, u32)> {
     }
 }
 
-fn img_to_ascii(
-    img: Rgb32FImage,
-    settings: Settings,
-) {
+fn img_to_ascii(mut img: DynamicImage, settings: Settings) -> Result<(), ()> {
+    // Resize image to fit desired ascii output size
+    if settings.preserve_aspect_ratio {
+        img = img.resize(settings.width, settings.height, FilterType::Triangle);
+    } else {
+        img = img.resize_exact(settings.width, settings.height, FilterType::Triangle);
+    }
+
+    // Convert 'DynamicImage' type to 'RGB32FImage'
+    let img = img.to_rgb32f();
+
     let mut i = 0;
-    let mut lock = stdout().lock();
+    let mut ascii_img = String::new();
 
     for pixel in img.pixels() {
         // If at end of pixel row print newline
         if i == img.width() - 1 {
-            write!(lock, "\n").unwrap();
+            ascii_img += "\n";
             i = 0;
 
         } else {
@@ -231,22 +247,44 @@ fn img_to_ascii(
             let size = settings.char_set.len() - 1;
             let index = (size as f32 * brightness).round() as usize;
 
-            let mut ascii_pixel = if settings.color { truecolor(rgb) } else { String::new() };
+            // Creates the ascii pixel from two ascii characters, colors it if needed
+            let ascii_pixel = if settings.color {
+                truecolor(rgb, settings.char_set[index])
+            } else {
+                format!("{}{}", settings.char_set[index], settings.char_set[index])
+            };
 
-            // Have to print character twice so it is the shape of a square like a pixel
-            ascii_pixel.push(settings.char_set[index]);
-            ascii_pixel.push(settings.char_set[index]);
-
-            write!(lock, "{}", ascii_pixel).unwrap();
+            ascii_img += &ascii_pixel;
             i += 1;
         }
     }
-    // Clear color
-    write!(lock, "\x1b[0m").unwrap();
+    // Turns all ansi attributes off
+    ascii_img.push_str("\x1b[0m");
+
+    if settings.output_file.is_empty() {
+        print!("{}", ascii_img);
+    } else {
+        // Try to write ascii image to file
+        match fs::write(settings.output_file, ascii_img) {
+            Ok(_) => (),
+            Err(err) => {
+                eprintln!("\x1b[31;1merror\x1b[0m: Failed to write to output file");
+                eprintln!("{}", err);
+                return Err(());
+            }
+        };
+    }
+    Ok(())
 }
 
-// Uses ANSI escape sequence to display color in terminal
+// Creates a string composed of an ansi escape sequence for color and two ascii characters,
+// who compose the ascii pixel
 // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-fn truecolor(rgb: [f32; 3]) -> String{
-    format!("\x1b[38;2;{};{};{}m", (rgb[0] * 255.).round() as i32, (rgb[1] * 255.).round() as i32, (rgb[2] * 255.).round() as i32)
+fn truecolor(rgb: [f32; 3], ascii_char: char) -> String{
+    format!("\x1b[38;2;{};{};{}m{}{}",
+        (rgb[0] * 255.).round() as i32,
+        (rgb[1] * 255.).round() as i32,
+        (rgb[2] * 255.).round() as i32,
+        ascii_char, ascii_char
+    )
 }
