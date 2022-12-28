@@ -1,27 +1,61 @@
 use crate::{Settings, ERROR_MSG, img::img_to_ascii};
 use image::{ImageBuffer, Rgb};
-use std::{thread, time::Duration, process::Command, cmp::max};
+use std::{thread, time, process::Command, cmp::max, fs};
+use crate::audio::play_audio;
 
 pub fn video_to_ascii(video: Vec<u8>, settings: Settings, fps: u64) -> Result<(), ()> {
     // Byte size of one frame
     let frame_size = settings.width * settings.height * 3;
 
+    // String for output file
+    let mut file = String::new();
+
     // for frame in video
     for i in 0..(video.len() as u32 / frame_size) {
+        let instant = time::Instant::now();
+
         // Get bytes of one frame
         let frame = &video[(i * frame_size) as usize..((i + 1) * frame_size) as usize];
 
         // Construct RgbImage from bytes
         let frame: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_raw(settings.width, settings.height, frame.to_vec()).unwrap();
 
-        thread::sleep(Duration::from_millis(1000 / fps));
+        let mut ascii = img_to_ascii(frame, &settings);
 
-        // Clear screen for next frame
-        print!("{}[2J", 27 as char);
+        if settings.output_file.is_empty() {
+            // Clear screen and print frame
+            print!("27[2J{}", ascii);
+        } else {
+            ascii.push_str("\n");
+            file.push_str(&format!("echo -e \"27[2J{}\"\nsleep {} \n", ascii, 1. / fps as f32));
+            continue
+        }
 
-        match img_to_ascii(frame, &settings) {
+        // Play audio if first frame and requested by user
+        if i == 0 {
+            if !settings.audio_file.is_empty() {
+                let audio_path = settings.audio_file.clone();
+                thread::spawn(|| {
+                    match play_audio(audio_path) {
+                        Ok(_) => (),
+                        Err(_) => panic!()
+                    }
+                });
+            }
+        }
+
+        // Sleep between frames
+        thread::sleep(time::Duration::from_micros((1_000_000 / fps) - instant.elapsed().as_micros() as u64));
+    }
+
+    // Write video to file if requested by user
+    if !settings.output_file.is_empty() {
+        match fs::write(settings.output_file, file) {
             Ok(_) => (),
-            Err(_) => return Err(())
+            Err(err) => {
+                eprintln!("{}Failed to write to output file. {}", ERROR_MSG, err);
+                return Err(())
+            }
         }
     }
     Ok(())

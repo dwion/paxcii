@@ -21,6 +21,7 @@ pub fn create_cli() -> ArgMatches {
                 .short('v')
                 .long("video")
                 .help("Path to input video file")
+                .value_name("example.mp4")
                 .num_args(1)
                 .action(ArgAction::Set)
         )
@@ -28,8 +29,19 @@ pub fn create_cli() -> ArgMatches {
             Arg::new("output-file")
                 .short('o')
                 .long("output-file")
-                .help("Print output to specified file instead of stdout")
-                .value_name("example.txt")
+                .help("\
+                    Print ascii output to shell script with specified name instead of stdout. \
+                    Then you can run the shell script to see the output")
+                .value_name("example.sh")
+                .num_args(1)
+                .action(ArgAction::Set)
+        )
+        .arg(
+            Arg::new("audio-file")
+                .short('a')
+                .long("audio-file")
+                .help("Path to audio file to be played while the video is running. Supported fromats: mp3/wav/ogg/flac/m4a/aac")
+                .value_name("example.mp3")
                 .num_args(1)
                 .action(ArgAction::Set)
         )
@@ -86,9 +98,14 @@ pub fn process_args(cmd: ArgMatches) -> Result<(Settings, String), ()> {
         path = cmd.get_one::<String>("video").unwrap().clone();
     }
 
-    // Get output file name
+    // Get output file path
     if cmd.contains_id("output-file") {
         settings.output_file = cmd.get_one::<String>("output-file").unwrap().clone();
+    }
+
+    // Get audio file path
+    if cmd.contains_id("audio-file") {
+        settings.audio_file = cmd.get_one::<String>("audio-file").unwrap().clone();
     }
 
     if cmd.get_flag("no-color") {

@@ -1,19 +1,16 @@
 // TODO
 // Option for display in 8 bit color (?)
 // // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-// Video output to file
-// Audio
-// Buffers
-// Crate (?)
 
 use image::imageops::FilterType;
-use std::process::ExitCode;
+use std::{process::ExitCode, fs};
 
 mod cli;
 mod img;
 use img::img_to_ascii;
 mod video;
 use video::*;
+mod audio;
 
 fn main() -> ExitCode {
     let cmd = cli::create_cli();
@@ -36,20 +33,32 @@ fn main() -> ExitCode {
         // Convert 'DynamicImage' type to 'RgbImage'
         let img = img.to_rgb8();
 
-        match img_to_ascii(img, &settings) {
-            Ok(_) => (),
-            Err(_) => return ExitCode::FAILURE
+        let ascii = img_to_ascii(img, &settings);
+
+        if settings.output_file.is_empty() {
+            print!("{}", ascii);
+        } else {
+            // Try to write ascii image to output file
+            match fs::write(&settings.output_file, format!(r#"echo -e "{}""#, ascii)) {
+                Ok(_) => (),
+                Err(err) => {
+                    eprintln!("{}Failed to write to output file. {}", ERROR_MSG, err);
+                    return ExitCode::FAILURE
+                }
+            }
         }
     } else {
+        // Get video resolution and fps
         let (vsize, fps) = match get_video_info(&path) {
             Ok(x) => x,
             Err(_) => return ExitCode::FAILURE
         };
-
         if settings.preserve_aspect_ratio {
+            // Resize video dimensions preserving aspect ratio
             (settings.width, settings.height) = resize_video_dimensions(vsize, &settings);
         }
 
+        // Get video bytes using ffmpeg command
         let video = ffmpeg_cmd([settings.width, settings.height], &path);
 
         match video_to_ascii(video, settings, fps) {
@@ -73,6 +82,7 @@ const CHARS_FILLED: [char; 4] = ['░', '▒', '▓', '█'];
 pub struct Settings {
     is_video: bool,
     output_file: String,
+    audio_file: String,
     color: bool,
     char_set: Vec<char>,
     width: u32,
@@ -85,6 +95,7 @@ impl Default for Settings {
         Settings {
             is_video: false,
             output_file: String::new(),
+            audio_file: String::new(),
             color: true,
             char_set: Vec::from(CHARS_MEDIUM),
             width: 42,

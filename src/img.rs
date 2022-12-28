@@ -1,8 +1,7 @@
 use image::{RgbImage, Rgb};
-use std::fs;
-use crate::{Settings, ERROR_MSG};
+use crate::Settings;
 
-pub fn img_to_ascii(img: RgbImage, settings: &Settings) -> Result<(), ()> {
+pub fn img_to_ascii(img: RgbImage, settings: &Settings) -> String {
     let mut i = 0;
     let mut ascii_img = String::new();
 
@@ -37,21 +36,7 @@ pub fn img_to_ascii(img: RgbImage, settings: &Settings) -> Result<(), ()> {
     }
     // Turns all ansi attributes off
     ascii_img.push_str("\x1b[0m");
-
-    if settings.output_file.is_empty() {
-        print!("{}", ascii_img);
-    } else {
-        // Try to write ascii image to file
-        match fs::write(&settings.output_file, ascii_img) {
-            Ok(_) => (),
-            Err(err) => {
-                eprintln!("{}Failed to write to output file", ERROR_MSG);
-                eprintln!("{}", err);
-                return Err(());
-            }
-        };
-    }
-    Ok(())
+    ascii_img
 }
 
 // Creates a string composed of an ansi escape sequence for color and two ascii characters,
