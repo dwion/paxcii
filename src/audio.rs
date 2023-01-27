@@ -1,29 +1,27 @@
+//! Contains the `play_with_audio` method.
+
+use crate::video::AsciiVideo;
+use std::{fs::File, io::BufReader};
 use rodio::Decoder;
-use std::io::BufReader;
-use std::fs::File;
-use crate::ERROR_MSG;
 
-pub fn play_audio(path: String) -> Result<(), ()> {
-    let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
+impl AsciiVideo {
+    /// Print the ascii video to stdout like `play` but alongside the specified audio file.\
+    /// Supported audio formats: mp3/wav/ogg/flac/m4a/aac
+    pub fn play_with_audio(self, file_path: &str) -> anyhow::Result<()> {
+        let (_stream, handle) = rodio::OutputStream::try_default()?;
+        let sink = rodio::Sink::try_new(&handle)?;
 
-    let file = match File::open(path) {
-        Ok(x) => x,
-        Err(err) => {
-            eprintln!("{}Failed to open input file for audio. {}", ERROR_MSG, err);
-            return Err(());
-        }
-    };
+        // Open audio file
+        let file = File::open(file_path)?;
+    
+        // Decode audio file
+        let decoder = Decoder::new(BufReader::new(file))?;
+        sink.append(decoder);
 
-    let decoder = match Decoder::new(BufReader::new(file)) {
-        Ok(x) => x,
-        Err(err) => {
-            eprintln!("{}Failed to decode audio file. {}", ERROR_MSG, err);
-            return Err(());
-        }
-    };
+        // Play audio and ascii video
+        sink.play();
+        self.play();
 
-    sink.append(decoder);
-    sink.sleep_until_end();
-    Ok(())
+        Ok(())
+    }
 }
