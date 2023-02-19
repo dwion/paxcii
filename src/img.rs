@@ -1,5 +1,5 @@
-use image::{imageops::FilterType, DynamicImage};
 use crate::settings::PaxciiSettings;
+use image::{imageops::FilterType, DynamicImage};
 
 // Characters used to display ASCII output
 pub const CHARS_LIGHT: [char; 11] = [' ', ' ', '.', ':', '!', '+', '*', 'e', '$', '@', '8'];
@@ -31,7 +31,6 @@ pub fn img_to_ascii(mut img: DynamicImage, s: &PaxciiSettings, resize: bool) -> 
         if row_index == img.width() {
             ascii_img += "\n";
             row_index = 1;
-
         } else {
             // Determine what ASCII character to use for this pixel
             let brightness = if s.color {
@@ -46,7 +45,10 @@ pub fn img_to_ascii(mut img: DynamicImage, s: &PaxciiSettings, resize: bool) -> 
             let ascii_pixel = if s.color {
                 truecolor(p.0, s.char_set[char_set_index])
             } else {
-                format!("{}{}", s.char_set[char_set_index], s.char_set[char_set_index])
+                format!(
+                    "{}{}",
+                    s.char_set[char_set_index], s.char_set[char_set_index]
+                )
             };
 
             ascii_img += &ascii_pixel;
@@ -61,6 +63,9 @@ pub fn img_to_ascii(mut img: DynamicImage, s: &PaxciiSettings, resize: bool) -> 
 // Creates a string composed of an ansi escape sequence for color and two ascii characters,
 // who compose the ascii pixel
 // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-fn truecolor(rgb: [u8; 3], ascii_char: char) -> String{
-    format!("\x1b[38;2;{};{};{}m{}{}", rgb[0], rgb[1], rgb[2], ascii_char, ascii_char)
+fn truecolor(rgb: [u8; 3], ascii_char: char) -> String {
+    format!(
+        "\x1b[38;2;{};{};{}m{}{}",
+        rgb[0], rgb[1], rgb[2], ascii_char, ascii_char
+    )
 }

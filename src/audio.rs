@@ -1,8 +1,8 @@
 //! Contains the `play_with_audio` method.
 
 use crate::video::AsciiVideo;
-use std::{fs::File, io::BufReader};
 use rodio::Decoder;
+use std::{fs::File, io::BufReader};
 
 impl AsciiVideo {
     /// Print the ascii video to stdout like `play` but alongside the specified audio file.\
@@ -13,7 +13,7 @@ impl AsciiVideo {
 
         // Open audio file
         let file = File::open(file_path)?;
-    
+
         // Decode audio file
         let decoder = Decoder::new(BufReader::new(file))?;
         sink.append(decoder);
@@ -25,3 +25,4 @@ impl AsciiVideo {
         Ok(())
     }
 }
+

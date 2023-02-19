@@ -1,9 +1,9 @@
 use crate::{img::img_to_ascii, settings::PaxciiSettings};
-use image::{RgbImage, DynamicImage};
-use std::{thread, time, process::Command};
-use std::io::{self, stdout, Write};
-use std::fs;
 use anyhow;
+use image::{DynamicImage, RgbImage};
+use std::fs;
+use std::io::{self, stdout, Write};
+use std::{process::Command, thread, time};
 
 /// Struct holding the ascii video, output of [`video_to_ascii`]
 pub struct AsciiVideo {
@@ -23,7 +23,9 @@ impl AsciiVideo {
             write!(lock, "\x1b[2J{}", frame).expect("Failed to write to stdout");
 
             // Sleep between frames
-            thread::sleep(time::Duration::from_micros((1_000_000 / self.fps) - instant.elapsed().as_micros() as u64));
+            thread::sleep(time::Duration::from_micros(
+                (1_000_000 / self.fps) - instant.elapsed().as_micros() as u64,
+            ));
         }
     }
 
@@ -35,7 +37,11 @@ impl AsciiVideo {
 
         for frame in &self.frames {
             // wrap frame in echo command, follow it by sleep command
-            script.push_str(&format!("echo -e \"\x1b[2J{}\"\nsleep {}\n", frame, 1. / self.fps as f32))
+            script.push_str(&format!(
+                "echo -e \"\x1b[2J{}\"\nsleep {}\n",
+                frame,
+                1. / self.fps as f32
+            ))
         }
 
         // Write bash script to file
@@ -46,10 +52,10 @@ impl AsciiVideo {
 
 /// Transforms a whole video into ascii.
 /// Takes a videos data in rgb bytes and returns a vector containing the ascii frames.
-/// 
+///
 /// Input video must be resized to the values in [`PaxciiSettings`].
 /// If the video comes from [`ffmpeg_video`] you don't have to worry.
-/// 
+///
 /// Use the `play` method to print the video to stdout.
 pub fn video_to_ascii(video: Vec<u8>, s: &PaxciiSettings) -> AsciiVideo {
     // Byte size of one frame
@@ -63,11 +69,10 @@ pub fn video_to_ascii(video: Vec<u8>, s: &PaxciiSettings) -> AsciiVideo {
         // Get bytes of one frame
         let frame = video[(i * frame_size) as usize..((i + 1) * frame_size) as usize].to_owned();
         // Convert bytes to `DynamicImage`
-        let frame = 
-            DynamicImage::ImageRgb8(RgbImage::from_raw(s.width, s.height, frame)
-            .expect("Error in `video_to_ascii` function when converting bytes to `DynamicImage`. \
-                Problem might lie in width and height values in `PaxciiSettings`.")
-        );
+        let frame = DynamicImage::ImageRgb8(RgbImage::from_raw(s.width, s.height, frame).expect(
+            "Error in `video_to_ascii` function when converting bytes to `DynamicImage`. \
+                Problem might lie in width and height values in `PaxciiSettings`.",
+        ));
 
         // Add ascii frame to video
         frames.push(img_to_ascii(frame, &s, false));
@@ -87,7 +92,10 @@ pub fn ffmpeg_video(path: &str, mut s: &mut PaxciiSettings) -> anyhow::Result<Ve
 
     let cmd = Command::new("ffmpeg")
         .args(["-i", &path])
-        .args(["-vf", &format!("format=rgb24, scale={}:{}", s.width, s.height)])
+        .args([
+            "-vf",
+            &format!("format=rgb24, scale={}:{}", s.width, s.height),
+        ])
         .args(["-f", "rawvideo"])
         .arg("-")
         .output()?;
@@ -101,7 +109,7 @@ pub fn ffmpeg_video(path: &str, mut s: &mut PaxciiSettings) -> anyhow::Result<Ve
 }
 
 /// Returns width, height and fps of the specified video using the ffprobe command.
-/// 
+///
 /// Used in [`ffmpeg_video`].
 pub fn ffprobe_video_info(path: &str) -> anyhow::Result<([u32; 2], u64)> {
     let cmd = Command::new("ffprobe")
@@ -135,6 +143,7 @@ fn keep_aspect_ratio(original_size: [u32; 2], new_size: [u32; 2]) -> (u32, u32) 
     let ratio = wratio.min(hratio);
 
     let w = (original_size[0] as f32 * ratio).round() as u32;
-    let h = (original_size[1] as f32 * ratio).round() as u32;   
+    let h = (original_size[1] as f32 * ratio).round() as u32;
     (w, h)
 }
+

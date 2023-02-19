@@ -1,20 +1,20 @@
 //! Cli for paxcii.
-//! 
+//!
 //! Also a good example on how to use paxcii library side.
 
-use clap::{Arg, ArgAction, Command as ClapCommand, ArgMatches, value_parser};
-use std::{process, fs};
+use clap::{value_parser, Arg, ArgAction, ArgMatches, Command as ClapCommand};
 use paxcii::{
     self,
-    PaxciiSettings,
     img::*,
-    video::{video_to_ascii, ffmpeg_video},
+    video::{ffmpeg_video, video_to_ascii},
+    PaxciiSettings,
 };
+use std::{fs, process::ExitCode};
 
 // Bold and red 'error: '
 const ERR_MSG: &str = "\x1b[31;1merror\x1b[0m: ";
 
-fn main() {
+fn main() -> ExitCode {
     let cmd = create_cli();
 
     let processed_args = process_args(cmd);
@@ -28,7 +28,7 @@ fn main() {
             Ok(x) => x,
             Err(err) => {
                 eprintln!("{}Failed to get video bytes: {}", ERR_MSG, err);
-                process::exit(1)
+                return ExitCode::from(1);
             }
         };
 
@@ -40,7 +40,7 @@ fn main() {
                 Ok(_) => (),
                 Err(err) => {
                     eprintln!("{}failed to write bash script: {}", ERR_MSG, err);
-                    process::exit(1)
+                    return ExitCode::from(1);
                 }
             };
 
@@ -48,9 +48,8 @@ fn main() {
         } else if let Some(file_path) = processed_args.audio_file {
             if let Err(err) = ascii_video.play_with_audio(&file_path) {
                 eprintln!("{}failed to play audio: {}", ERR_MSG, err);
-                process::exit(1)
+                return ExitCode::from(1);
             };
-
         } else {
             ascii_video.play();
         }
@@ -59,7 +58,7 @@ fn main() {
     } else if let Some(webcam_index) = processed_args.webcam {
         if let Err(err) = paxcii::webcam(webcam_index, &settings) {
             eprintln!("{}webcam failed: {}", ERR_MSG, err);
-            process::exit(1)
+            return ExitCode::from(1);
         };
 
     // Image
@@ -69,7 +68,7 @@ fn main() {
             Ok(x) => x,
             Err(err) => {
                 eprintln!("{}failed to open image: {}", ERR_MSG, err);
-                process::exit(1)
+                return ExitCode::from(1);
             }
         };
 
@@ -81,13 +80,14 @@ fn main() {
                 Ok(_) => (),
                 Err(err) => {
                     eprintln!("{}failed to write to output file: {}", ERR_MSG, err);
-                    process::exit(1)
+                    return ExitCode::from(1);
                 }
             }
         } else {
             print!("{}", ascii);
         }
     }
+    ExitCode::from(0)
 }
 
 #[derive(Default)]
@@ -145,8 +145,8 @@ fn process_args(cmd: ArgMatches) -> ProcessedArgs {
             "medium" => Vec::from(CHARS_MEDIUM),
             "filled" => Vec::from(CHARS_FILLED),
             _ => {
-                eprintln!("{}Invalid value for argument 'char-set'. Value can only be: light/medium/filled", ERR_MSG);
-                process::exit(1)
+                eprintln!("{}Invalid value for argument 'char-set'. Value can only be: light/medium/filled. `medium` will be used", ERR_MSG);
+                Vec::from(CHARS_MEDIUM)
             }
         }
     }
@@ -276,3 +276,4 @@ fn create_cli() -> ArgMatches {
         .get_matches();
     cmd
 }
+
