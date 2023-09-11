@@ -8,9 +8,9 @@ You will need ffmpeg and linux.
 
 # Installation
 ## cli
-```
-cargo install paxcii
-```
+~~`cargo install paxcii`~~
+
+Seems broken, I'll look into it
 
 ## crate
 https://crates.io/crates/paxcii
