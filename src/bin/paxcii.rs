@@ -127,13 +127,11 @@ fn get_term_size() -> Option<(u32, u32)> {
     }
 }
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 // Creates the cli interface
 fn create_cli() -> ArgMatches {
     let cmd = ClapCommand::new("paxcii")
         .about("Transform images and videos to ascii")
-        .version(VERSION)
+        .version("0.6.0")
         .arg_required_else_help(true)
         .arg(
             Arg::new("image")

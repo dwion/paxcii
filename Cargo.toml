@@ -21,8 +21,6 @@ anyhow = "1.0"
 [features]
 webcam = ["dep:nokhwa"]
 audio = ["dep:rodio"]
-# remove before release
-default = ["audio", "webcam"]
 
 [[bin]]
 name = "paxcii"
