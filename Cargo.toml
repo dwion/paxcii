@@ -1,26 +1,29 @@
 [package]
 name = "paxcii"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
-authors = ["enedon <3nedon@gmail.com>"]
+authors = ["dwion <3nedon@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/enedon/paxcii"
+repository = "https://github.com/dwion/paxcii"
 documentation = "https://docs.rs/paxcii/latest/paxcii/"
 description = "Transform images and videos to ascii"
+keywords = ["ascii", "image", "video", "cli"]
 
 [dependencies]
 image = "0.24"
 term_size = "0.3"
-clap = "4"
-rodio = { version = "0.16", default-features = false, features = ["symphonia-all"], optional = true }
-nokhwa = { version = "0.10", features = ["input-native", "output-wgpu"], optional = true }
+clap = "4.4"
+rodio = { version = "0.17", default-features = false, features = ["mp3"], optional = true }
+nokhwa = { git = "https://github.com/l1npengtul/nokhwa.git", branch = "0.10", features = ["input-native", "output-wgpu"], optional = true }
+# nokhwa = { version = "0.10" , features = ["input-native", "output-wgpu"], optional = true }
 anyhow = "1.0"
 
 [features]
-default = ["webcam", "audio"]
 webcam = ["dep:nokhwa"]
 audio = ["dep:rodio"]
+# remove before release
+default = ["audio", "webcam"]
 
 [[bin]]
 name = "paxcii"
-required-features = ["webcam", "audio"]
+required-features = ["audio", "webcam"]

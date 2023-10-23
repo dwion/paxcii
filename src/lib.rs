@@ -1,8 +1,6 @@
-// TODO
-// (?) - will maybe do
-// Option for display in 8 bit color (?)
-// https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-// Mic audio over webcam (?)
+// TODO (maybe)
+// usage example
+// AUR
 
 //! Transform images and videos to ascii.
 //!
@@ -10,22 +8,18 @@
 //! <https://www.youtube.com/watch?v=-JT_XlLnAas>
 //!
 //! ## Dependencies
-//! You will need ffmpeg and linux
+//! You will need ffmpeg and linux.\
+//! Also you should have a fast terminal for videos.
 //!
 //! ## How to use
-//! The docs have basic documentation.
-//! For an example go take a look at the cli source code.
+//! The docs have basic documentation.\
+//! The cli can also serve as an example.
 //!
 //! ## Features
-//! There are two features: webcam and audio. Both are enabled by default.
+//! There are two features: webcam and audio.
 //!
 //! The webcam uses the [nokhwa](https://crates.io/crates/nokhwa) crate.\
 //! The audio uses the [rodio](https://crates.io/crates/rodio) crate.
-//!
-//! You can disable them by adding `default-features = false` to the dependency like so:
-//! ```toml
-//! paxcii = { version = "*", default-features = false }
-//! ```
 
 #[cfg(feature = "audio")]
 pub mod audio;
@@ -35,7 +29,8 @@ pub mod video;
 #[cfg(feature = "webcam")]
 pub mod webcam;
 
+pub use img::AsciiImage;
 pub use settings::PaxciiSettings;
+pub use video::AsciiVideo;
 #[cfg(feature = "webcam")]
 pub use webcam::webcam;
-
